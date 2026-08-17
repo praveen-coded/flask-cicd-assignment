@@ -58,7 +58,7 @@ jobs:
 
   unit-test:
     name: "2. Unit Tests"
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     needs: code-check
 
@@ -89,7 +89,7 @@ jobs:
 
   docker-build:
     name: "3. Docker Build"
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     needs: unit-test
 
@@ -128,7 +128,7 @@ jobs:
 
   aws-check:
     name: "4. AWS Validation"
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     needs: docker-build
 
@@ -160,7 +160,7 @@ jobs:
 
   ecr-login:
     name: "5. ECR Login"
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     needs: aws-check
 
@@ -188,7 +188,7 @@ jobs:
 
   push-to-ecr:
     name: "6. Push Image to ECR"
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     needs: ecr-login
 
@@ -251,7 +251,7 @@ jobs:
 
   cleanup:
     name: "7. Cleanup"
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     if: always()
 
