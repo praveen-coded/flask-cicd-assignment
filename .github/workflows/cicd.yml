@@ -9,7 +9,7 @@ on:
 
 env:
   AWS_REGION: ap-south-1
-  ECR_REPOSITORY: student-flask-app
+  ECR_REPOSITORY: flask-cicd
 
 # ============================================================
 # JOB 1 - CODE CHECK
@@ -132,10 +132,15 @@ jobs:
 
     needs: docker-build
 
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
     steps:
 
       - name: Check AWS CLI
         run: |
+          echo "===== AWS CLI ====="
           aws --version
 
       - name: Check AWS Identity
@@ -145,13 +150,16 @@ jobs:
 
       - name: Check AWS Region
         run: |
-          aws configure get region || true
+          echo "===== AWS Region ====="
+          echo "Region: $AWS_REGION"
 
       - name: Check ECR Repository
         run: |
+          echo "===== Checking ECR Repository ====="
+
           aws ecr describe-repositories \
-            --repository-names $ECR_REPOSITORY \
-            --region $AWS_REGION
+            --repository-names "$ECR_REPOSITORY" \
+            --region "$AWS_REGION"
 
 
   # ============================================================
@@ -164,18 +172,27 @@ jobs:
 
     needs: aws-check
 
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
     steps:
+
+      - name: Check AWS Identity
+        run: |
+          echo "===== AWS Identity ====="
+          aws sts get-caller-identity
 
       - name: Login to Amazon ECR
         run: |
           echo "===== Logging into ECR ====="
 
           aws ecr get-login-password \
-            --region $AWS_REGION \
+            --region "$AWS_REGION" \
             | docker login \
             --username AWS \
             --password-stdin \
-            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com
+            "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 
       - name: Verify Docker Login
         run: |
@@ -183,7 +200,7 @@ jobs:
 
 
   # ============================================================
-  # JOB 6 - TAG AND PUSH
+  # JOB 6 - BUILD, TAG AND PUSH
   # ============================================================
 
   push-to-ecr:
@@ -192,57 +209,125 @@ jobs:
 
     needs: ecr-login
 
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
     steps:
 
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Build Image Again
+      # --------------------------------------------------------
+      # AWS Validation
+      # --------------------------------------------------------
+
+      - name: Check AWS Identity
         run: |
+          echo "===== AWS Identity ====="
+          aws sts get-caller-identity
+
+      # --------------------------------------------------------
+      # ECR Login
+      # --------------------------------------------------------
+
+      - name: Login to Amazon ECR
+        run: |
+          echo "===== ECR Login ====="
+
+          aws ecr get-login-password \
+            --region "$AWS_REGION" \
+            | docker login \
+            --username AWS \
+            --password-stdin \
+            "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+      # --------------------------------------------------------
+      # Docker Build
+      # --------------------------------------------------------
+
+      - name: Build Docker Image
+        run: |
+          echo "===== Building Docker Image ====="
+
           docker build \
-            -t $ECR_REPOSITORY:${{ github.sha }} \
-            -t $ECR_REPOSITORY:latest \
+            -t "$ECR_REPOSITORY:${{ github.sha }}" \
+            -t "$ECR_REPOSITORY:latest" \
             .
 
-      - name: Tag Image for ECR
+      # --------------------------------------------------------
+      # Tag Image
+      # --------------------------------------------------------
+
+      - name: Tag Docker Image
         run: |
 
-          ECR_URL=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com
+          ECR_URL="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+          echo "===== ECR URL ====="
+          echo "$ECR_URL"
+
+          echo "===== Tagging SHA Image ====="
 
           docker tag \
-            $ECR_REPOSITORY:${{ github.sha }} \
-            $ECR_URL/$ECR_REPOSITORY:${{ github.sha }}
+            "$ECR_REPOSITORY:${{ github.sha }}" \
+            "$ECR_URL/$ECR_REPOSITORY:${{ github.sha }}"
+
+          echo "===== Tagging Latest Image ====="
 
           docker tag \
-            $ECR_REPOSITORY:latest \
-            $ECR_URL/$ECR_REPOSITORY:latest
+            "$ECR_REPOSITORY:latest" \
+            "$ECR_URL/$ECR_REPOSITORY:latest"
 
-      - name: Show Final Tags
+      # --------------------------------------------------------
+      # Show Images
+      # --------------------------------------------------------
+
+      - name: Show Docker Images
         run: |
+          echo "===== Docker Images ====="
           docker images
+
+      # --------------------------------------------------------
+      # Push SHA Image
+      # --------------------------------------------------------
 
       - name: Push SHA Image
         run: |
 
-          ECR_URL=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com
+          ECR_URL="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+          echo "===== Pushing SHA Image ====="
 
           docker push \
-            $ECR_URL/$ECR_REPOSITORY:${{ github.sha }}
+            "$ECR_URL/$ECR_REPOSITORY:${{ github.sha }}"
+
+      # --------------------------------------------------------
+      # Push Latest Image
+      # --------------------------------------------------------
 
       - name: Push Latest Image
         run: |
 
-          ECR_URL=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com
+          ECR_URL="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+          echo "===== Pushing Latest Image ====="
 
           docker push \
-            $ECR_URL/$ECR_REPOSITORY:latest
+            "$ECR_URL/$ECR_REPOSITORY:latest"
+
+      # --------------------------------------------------------
+      # Verify ECR
+      # --------------------------------------------------------
 
       - name: Verify ECR Image
         run: |
 
+          echo "===== ECR Images ====="
+
           aws ecr describe-images \
-            --repository-name $ECR_REPOSITORY \
-            --region $AWS_REGION
+            --repository-name "$ECR_REPOSITORY" \
+            --region "$AWS_REGION"
 
 
   # ============================================================
@@ -267,7 +352,7 @@ jobs:
 
       - name: Docker Cleanup
         run: |
-          echo "===== Cleaning unused Docker resources ====="
+          echo "===== Cleaning Docker Resources ====="
 
           docker image prune -af
 
