@@ -364,3 +364,67 @@ jobs:
           echo ""
           echo "===== Docker Disk Usage ====="
           docker system df
+
+  # ============================================================
+  # JOB 8 - EMAIL NOTIFICATION
+  # ============================================================
+
+  email-notification:
+    name: "8. Email Notification"
+    runs-on: ubuntu-latest
+
+    if: always()
+
+    needs:
+      - code-check
+      - unit-test
+      - docker-build
+      - aws-check
+      - ecr-login
+      - push-to-ecr
+      - cleanup
+
+    steps:
+
+      - name: Send CI/CD Email
+        uses: dawidd6/action-send-mail@v6
+
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          secure: true
+
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+
+          from: ${{ secrets.EMAIL_FROM }}
+          to: ${{ secrets.EMAIL_TO }}
+
+          subject: "Flask CI/CD Pipeline Notification"
+
+          body: |
+            Flask CI/CD Pipeline Notification
+
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Triggered By: ${{ github.actor }}
+            Run Number: ${{ github.run_number }}
+
+            ------------------------------
+            JOB RESULTS
+            ------------------------------
+
+            Code Check       : ${{ needs.code-check.result }}
+            Unit Tests       : ${{ needs.unit-test.result }}
+            Docker Build     : ${{ needs.docker-build.result }}
+            AWS Validation   : ${{ needs.aws-check.result }}
+            ECR Login        : ${{ needs.ecr-login.result }}
+            Push to ECR      : ${{ needs.push-to-ecr.result }}
+            Cleanup          : ${{ needs.cleanup.result }}
+
+            ------------------------------
+            GitHub Actions Run
+            ------------------------------
+
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  
