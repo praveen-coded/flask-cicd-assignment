@@ -1,214 +1,430 @@
-name: Flask CI/CD Pipeline
+name: Flask CI/CD - Build and Push to ECR
 
 on:
   push:
     branches:
       - main
 
+  workflow_dispatch:
+
 env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
-  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: flask-cicd
+
+# ============================================================
+# JOB 1 - CODE CHECK
+# ============================================================
 
 jobs:
-  build-test-deploy:
 
+  code-check:
+    name: "1. Code Check"
     runs-on: ubuntu-latest
 
     steps:
 
-      # -----------------------------------
-      # 1. CHECKOUT SOURCE CODE
-      # -----------------------------------
-      - name: Checkout source code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      # -----------------------------------
-      # 2. SETUP PYTHON
-      # -----------------------------------
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      # -----------------------------------
-      # 3. INSTALL DEPENDENCIES
-      # -----------------------------------
-      - name: Install dependencies
+      - name: Show Project Files
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          echo "===== Project Structure ====="
+          ls -la
+          echo ""
+          echo "===== Workflow Files ====="
+          find . -maxdepth 3 -type f
 
-      # -----------------------------------
-      # 4. RUN PYTEST
-      # -----------------------------------
-      - name: Run pytest
+      - name: Check Python Version
         run: |
+          python3 --version
+
+      - name: Check Pip Version
+        run: |
+          pip3 --version
+
+      - name: Install Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install -r requirements.txt
+
+      - name: Verify Flask Installation
+        run: |
+          flask --version
+
+
+  # ============================================================
+  # JOB 2 - UNIT TEST
+  # ============================================================
+
+  unit-test:
+    name: "2. Unit Tests"
+    runs-on: ubuntu-latest
+
+    needs: code-check
+
+    steps:
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install -r requirements.txt
+
+      - name: Run Pytest
+        run: |
+          echo "===== Running Tests ====="
           pytest -v
 
-      # -----------------------------------
-      # 5. CONFIGURE AWS
-      # -----------------------------------
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      # -----------------------------------
-      # 6. LOGIN TO AMAZON ECR
-      # -----------------------------------
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      # -----------------------------------
-      # 7. SET DOCKER IMAGE URI
-      # -----------------------------------
-      - name: Set Docker image
+      - name: Test Summary
+        if: always()
         run: |
+          echo "===== Test Job Completed ====="
 
-          ACCOUNT_ID=$(aws sts get-caller-identity \
-            --query Account \
-            --output text)
 
-          ECR_REGISTRY=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+  # ============================================================
+  # JOB 3 - DOCKER BUILD
+  # ============================================================
 
-          IMAGE_TAG=${GITHUB_SHA}
+  docker-build:
+    name: "3. Docker Build"
+    runs-on: ubuntu-latest
 
-          IMAGE_URI=${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+    needs: unit-test
 
-          echo "IMAGE_URI=${IMAGE_URI}" >> $GITHUB_ENV
-          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
+    steps:
 
-          echo "Docker Image:"
-          echo "${IMAGE_URI}"
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      # -----------------------------------
-      # 8. BUILD DOCKER IMAGE
-      # -----------------------------------
-      - name: Build Docker image
+      - name: Check Docker
+        run: |
+          docker --version
+
+      - name: Check Docker Service
+        run: |
+          docker info
+
+      - name: Build Docker Image
         run: |
           docker build \
-            -t $IMAGE_URI \
+            -t $ECR_REPOSITORY:${{ github.sha }} \
+            -t $ECR_REPOSITORY:latest \
             .
 
-      # -----------------------------------
-      # 9. PUSH IMAGE TO ECR
-      # -----------------------------------
-      - name: Push Docker image to ECR
+      - name: Show Docker Images
         run: |
-          docker push $IMAGE_URI
+          docker images
 
-      # -----------------------------------
-      # 10. DEPLOY TO EC2
-      # -----------------------------------
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.2.0
-        env:
-          IMAGE_URI: ${{ env.IMAGE_URI }}
-          AWS_REGION: ${{ env.AWS_REGION }}
+      - name: Inspect Docker Image
+        run: |
+          docker inspect $ECR_REPOSITORY:latest
+
+
+  # ============================================================
+  # JOB 4 - AWS VALIDATION
+  # ============================================================
+
+  aws-check:
+    name: "4. AWS Validation"
+    runs-on: ubuntu-latest
+
+    needs: docker-build
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    steps:
+
+      - name: Check AWS CLI
+        run: |
+          echo "===== AWS CLI ====="
+          aws --version
+
+      - name: Check AWS Identity
+        run: |
+          echo "===== AWS Identity ====="
+          aws sts get-caller-identity
+
+      - name: Check AWS Region
+        run: |
+          echo "===== AWS Region ====="
+          echo "Region: $AWS_REGION"
+
+      - name: Check ECR Repository
+        run: |
+          echo "===== Checking ECR Repository ====="
+
+          aws ecr describe-repositories \
+            --repository-names "$ECR_REPOSITORY" \
+            --region "$AWS_REGION"
+
+
+  # ============================================================
+  # JOB 5 - ECR LOGIN
+  # ============================================================
+
+  ecr-login:
+    name: "5. ECR Login"
+    runs-on: ubuntu-latest
+
+    needs: aws-check
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    steps:
+
+      - name: Check AWS Identity
+        run: |
+          echo "===== AWS Identity ====="
+          aws sts get-caller-identity
+
+      - name: Login to Amazon ECR
+        run: |
+          echo "===== Logging into ECR ====="
+
+          aws ecr get-login-password \
+            --region "$AWS_REGION" \
+            | docker login \
+            --username AWS \
+            --password-stdin \
+            "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+      - name: Verify Docker Login
+        run: |
+          echo "Docker login completed successfully."
+
+
+  # ============================================================
+  # JOB 6 - BUILD, TAG AND PUSH
+  # ============================================================
+
+  push-to-ecr:
+    name: "6. Push Image to ECR"
+    runs-on: ubuntu-latest
+
+    needs: ecr-login
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    steps:
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # --------------------------------------------------------
+      # AWS Validation
+      # --------------------------------------------------------
+
+      - name: Check AWS Identity
+        run: |
+          echo "===== AWS Identity ====="
+          aws sts get-caller-identity
+
+      # --------------------------------------------------------
+      # ECR Login
+      # --------------------------------------------------------
+
+      - name: Login to Amazon ECR
+        run: |
+          echo "===== ECR Login ====="
+
+          aws ecr get-login-password \
+            --region "$AWS_REGION" \
+            | docker login \
+            --username AWS \
+            --password-stdin \
+            "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+      # --------------------------------------------------------
+      # Docker Build
+      # --------------------------------------------------------
+
+      - name: Build Docker Image
+        run: |
+          echo "===== Building Docker Image ====="
+
+          docker build \
+            -t "$ECR_REPOSITORY:${{ github.sha }}" \
+            -t "$ECR_REPOSITORY:latest" \
+            .
+
+      # --------------------------------------------------------
+      # Tag Image
+      # --------------------------------------------------------
+
+      - name: Tag Docker Image
+        run: |
+
+          ECR_URL="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+          echo "===== ECR URL ====="
+          echo "$ECR_URL"
+
+          echo "===== Tagging SHA Image ====="
+
+          docker tag \
+            "$ECR_REPOSITORY:${{ github.sha }}" \
+            "$ECR_URL/$ECR_REPOSITORY:${{ github.sha }}"
+
+          echo "===== Tagging Latest Image ====="
+
+          docker tag \
+            "$ECR_REPOSITORY:latest" \
+            "$ECR_URL/$ECR_REPOSITORY:latest"
+
+      # --------------------------------------------------------
+      # Show Images
+      # --------------------------------------------------------
+
+      - name: Show Docker Images
+        run: |
+          echo "===== Docker Images ====="
+          docker images
+
+      # --------------------------------------------------------
+      # Push SHA Image
+      # --------------------------------------------------------
+
+      - name: Push SHA Image
+        run: |
+
+          ECR_URL="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+          echo "===== Pushing SHA Image ====="
+
+          docker push \
+            "$ECR_URL/$ECR_REPOSITORY:${{ github.sha }}"
+
+      # --------------------------------------------------------
+      # Push Latest Image
+      # --------------------------------------------------------
+
+      - name: Push Latest Image
+        run: |
+
+          ECR_URL="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+          echo "===== Pushing Latest Image ====="
+
+          docker push \
+            "$ECR_URL/$ECR_REPOSITORY:latest"
+
+      # --------------------------------------------------------
+      # Verify ECR
+      # --------------------------------------------------------
+
+      - name: Verify ECR Image
+        run: |
+
+          echo "===== ECR Images ====="
+
+          aws ecr describe-images \
+            --repository-name "$ECR_REPOSITORY" \
+            --region "$AWS_REGION"
+
+
+  # ============================================================
+  # JOB 7 - CLEANUP
+  # ============================================================
+
+  cleanup:
+    name: "7. Cleanup"
+    runs-on: ubuntu-latest
+
+    if: always()
+
+    needs:
+      - code-check
+      - unit-test
+      - docker-build
+      - aws-check
+      - ecr-login
+      - push-to-ecr
+
+    steps:
+
+      - name: Docker Cleanup
+        run: |
+          echo "===== Cleaning Docker Resources ====="
+
+          docker image prune -af
+
+      - name: Workspace Information
+        run: |
+          echo "===== Disk Usage ====="
+          df -h
+
+          echo ""
+          echo "===== Docker Disk Usage ====="
+          docker system df
+
+  # ============================================================
+  # JOB 8 - EMAIL NOTIFICATION
+  # ============================================================
+
+  email-notification:
+    name: "8. Email Notification"
+    runs-on: ubuntu-latest
+
+    if: always()
+
+    needs:
+      - code-check
+      - unit-test
+      - docker-build
+      - aws-check
+      - ecr-login
+      - push-to-ecr
+      - cleanup
+
+    steps:
+
+      - name: Send CI/CD Email
+        uses: dawidd6/action-send-mail@v6
 
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          secure: true
 
-          envs: IMAGE_URI,AWS_REGION
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
 
-          script: |
+          from: ${{ secrets.EMAIL_FROM }}
+          to: ${{ secrets.EMAIL_TO }}
 
-            set -e
+          subject: "Flask CI/CD Pipeline Notification"
 
-            echo "===================================="
-            echo "Logging into Amazon ECR"
-            echo "===================================="
+          body: |
+            Flask CI/CD Pipeline Notification
 
-            aws ecr get-login-password \
-              --region $AWS_REGION | \
-              docker login \
-              --username AWS \
-              --password-stdin \
-              $(echo $IMAGE_URI | cut -d/ -f1)
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Triggered By: ${{ github.actor }}
+            Run Number: ${{ github.run_number }}
 
-            echo "===================================="
-            echo "Pulling Docker image"
-            echo "===================================="
+            ------------------------------
+            JOB RESULTS
+            ------------------------------
 
-            docker pull $IMAGE_URI
+            Code Check       : ${{ needs.code-check.result }}
+            Unit Tests       : ${{ needs.unit-test.result }}
+            Docker Build     : ${{ needs.docker-build.result }}
+            AWS Validation   : ${{ needs.aws-check.result }}
+            ECR Login        : ${{ needs.ecr-login.result }}
+            Push to ECR      : ${{ needs.push-to-ecr.result }}
+            Cleanup          : ${{ needs.cleanup.result }}
 
-            echo "===================================="
-            echo "Stopping old container"
-            echo "===================================="
+            ------------------------------
+            GitHub Actions Run
+            ------------------------------
 
-            docker stop flask-app || true
-
-            echo "===================================="
-            echo "Removing old container"
-            echo "===================================="
-
-            docker rm flask-app || true
-
-            echo "===================================="
-            echo "Starting new Flask container"
-            echo "===================================="
-
-            docker run -d \
-              --name flask-app \
-              --restart unless-stopped \
-              -p 4000:4000 \
-              $IMAGE_URI
-
-            echo "===================================="
-            echo "Waiting for Flask application"
-            echo "===================================="
-
-            sleep 10
-
-            echo "===================================="
-            echo "Checking Flask health endpoint"
-            echo "===================================="
-
-            curl --fail \
-              http://localhost:4000/health
-
-            echo ""
-            echo "===================================="
-            echo "Deployment successful!"
-            echo "===================================="
-
-      # -----------------------------------
-      # 11. SUCCESS NOTIFICATION
-      # -----------------------------------
-      - name: Success notification
-        if: success()
-        run: |
-
-          echo "SUCCESS: Flask CI/CD deployment completed."
-
-          echo "Commit: $GITHUB_SHA"
-
-          echo "Branch: $GITHUB_REF_NAME"
-
-          echo "Image: $IMAGE_URI"
-
-          echo "EC2: ${{ secrets.EC2_HOST }}"
-
-          echo "Pipeline:"
-          echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-
-      # -----------------------------------
-      # 12. FAILURE NOTIFICATION
-      # -----------------------------------
-      - name: Failure notification
-        if: failure()
-        run: |
-
-          echo "FAILURE: Flask CI/CD pipeline failed."
-
-          echo "Commit: $GITHUB_SHA"
-
-          echo "Branch: $GITHUB_REF_NAME"
-
-          echo "Pipeline:"
-          echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  
