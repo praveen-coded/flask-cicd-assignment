@@ -163,9 +163,8 @@ cd flask-cicd-assignment
 
 Add your screenshot here:
 
-```
-(github-repo.png)
-```
+<img width="1709" height="1028" alt="github-repo" src="https://github.com/user-attachments/assets/1379ef0e-60b2-43c1-8896-e92b6a102edf" />
+
 
 ---
 
@@ -228,13 +227,8 @@ PASSED
 
 ### Screenshot 4 — Pytest Successful
 
-```markdown
-![Screenshot 4 - Pytest Successful](screenshots/04-pytest-success.png)
-```
+<img width="1300" height="264" alt="pytest-successful" src="https://github.com/user-attachments/assets/657bde1c-33d4-4f70-8e4b-455a25834d00" />
 
-![Screenshot 4 - Pytest Successful](screenshots/04-pytest-success.png)
-
----
 
 # 10. Run Flask Application Locally
 
@@ -266,11 +260,8 @@ Expected:
 
 ### Screenshot 5 — Flask Application Running
 
-```markdown
-![Screenshot 5 - Flask Application Running](screenshots/05-flask-running.png)
-```
+<img width="1924" height="1035" alt="App on local " src="https://github.com/user-attachments/assets/821ffc3f-31fa-48cd-8394-95d968c78136" />
 
-![Screenshot 5 - Flask Application Running](screenshots/05-flask-running.png)
 
 ---
 
@@ -290,13 +281,8 @@ docker images
 
 ### Screenshot 6 — Docker Image Built
 
-```markdown
-![Screenshot 6 - Docker Image](screenshots/06-docker-image.png)
-```
+<img width="1923" height="875" alt="ECR (image stored) " src="https://github.com/user-attachments/assets/fae994b6-ff5e-42db-9914-3d18eca2a24c" />
 
-![Screenshot 6 - Docker Image](screenshots/06-docker-image.png)
-
----
 
 # 12. Run Docker Container Locally
 
@@ -331,11 +317,7 @@ Expected:
 
 ### Screenshot 7 — Docker Container Running
 
-```markdown
-![Screenshot 7 - Docker Container](screenshots/07-docker-container.png)
-```
-
-![Screenshot 7 - Docker Container](screenshots/07-docker-container.png)
+<img width="1478" height="878" alt="Image running on docker" src="https://github.com/user-attachments/assets/08104943-c5ff-4d2b-bcd6-e8fa85288b99" />
 
 ---
 
@@ -365,11 +347,7 @@ ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/flask-cicd-assignment
 
 ### Screenshot 8 — ECR Repository
 
-```markdown
-![Screenshot 8 - ECR Repository](screenshots/08-ecr-repository.png)
-```
-
-![Screenshot 8 - ECR Repository](screenshots/08-ecr-repository.png)
+<img width="1923" height="875" alt="ECR (image stored) " src="https://github.com/user-attachments/assets/70a8edb3-acdc-4eb1-8da0-de0193611118" />
 
 ---
 
@@ -445,7 +423,8 @@ curl --version
 ![Screenshot 10 - EC2 Environment](screenshots/10-ec2-environment.png)
 ```
 
-![Screenshot 10 - EC2 Environment](screenshots/10-ec2-environment.png)
+<img width="1911" height="867" alt="EC2 screenshot" src="https://github.com/user-attachments/assets/d6e77a74-756c-4bd8-ac5e-bdabbf1473b8" />
+
 
 ---
 
@@ -467,9 +446,8 @@ Avoid storing long-lived AWS access keys directly on the EC2 instance when an IA
 ![Screenshot 11 - EC2 IAM Role](screenshots/11-ec2-iam-role.png)
 ```
 
-![Screenshot 11 - EC2 IAM Role](screenshots/11-ec2-iam-role.png)
+<img width="1914" height="872" alt="IAM Role of ECR " src="https://github.com/user-attachments/assets/ed29a630-680a-4d80-91ec-e711fdd8d6fa" />
 
----
 
 # 17. GitHub Actions Secrets
 
@@ -497,7 +475,8 @@ Create these repository secrets:
 ![Screenshot 12 - GitHub Actions Secrets](screenshots/12-github-secrets.png)
 ```
 
-![Screenshot 12 - GitHub Actions Secrets](screenshots/12-github-secrets.png)
+<img width="1694" height="1026" alt="GitHub Secrets" src="https://github.com/user-attachments/assets/a5cec678-ee9f-4d5c-8a57-a1298daea72a" />
+
 
 ---
 
@@ -563,15 +542,6 @@ Health check
 Deployment successful
 ```
 
-### Screenshot 13 — Workflow File
-
-```markdown
-![Screenshot 13 - CI/CD Workflow](screenshots/13-cicd-workflow.png)
-```
-
-![Screenshot 13 - CI/CD Workflow](screenshots/13-cicd-workflow.png)
-
----
 
 # 19. Commit and Push Changes
 
@@ -599,13 +569,6 @@ Push:
 git push origin main
 ```
 
-### Screenshot 14 — Git Push
-
-```markdown
-![Screenshot 14 - Git Push](screenshots/14-git-push.png)
-```
-
-![Screenshot 14 - Git Push](screenshots/14-git-push.png)
 
 ---
 
@@ -641,7 +604,8 @@ The following steps should become successful:
 ![Screenshot 15 - GitHub Actions Success](screenshots/15-github-actions-success.png)
 ```
 
-![Screenshot 15 - GitHub Actions Success](screenshots/15-github-actions-success.png)
+<img width="1914" height="895" alt="GitHub-Success-Pipeline" src="https://github.com/user-attachments/assets/1980deb4-2cf4-4eb3-80e0-48e19fdc0fbc" />
+
 
 ---
 
@@ -697,15 +661,6 @@ Check logs:
 docker logs flask-app
 ```
 
-### Screenshot 17 — Flask Container on EC2
-
-```markdown
-![Screenshot 17 - EC2 Docker Container](screenshots/17-ec2-container.png)
-```
-
-![Screenshot 17 - EC2 Docker Container](screenshots/17-ec2-container.png)
-
----
 
 # 23. Verify Health Endpoint on EC2
 
@@ -723,15 +678,6 @@ Expected:
 }
 ```
 
-### Screenshot 18 — Health Check
-
-```markdown
-![Screenshot 18 - Health Check](screenshots/18-health-check.png)
-```
-
-![Screenshot 18 - Health Check](screenshots/18-health-check.png)
-
----
 
 # 24. Verify Application from Browser
 
@@ -767,7 +713,7 @@ Expected:
 ![Screenshot 19 - Flask Application](screenshots/19-flask-browser.png)
 ```
 
-![Screenshot 19 - Flask Application](screenshots/19-flask-browser.png)
+<img width="1920" height="1034" alt="App on EC2" src="https://github.com/user-attachments/assets/3a96d9df-b104-4976-8f74-713a048e3944" />
 
 ---
 
@@ -804,15 +750,7 @@ Flask Application :4000
 {"status": "healthy"}
 ```
 
-### Screenshot 20 — Final Deployment
 
-```markdown
-![Screenshot 20 - Final Deployment](screenshots/20-final-deployment.png)
-```
-
-![Screenshot 20 - Final Deployment](screenshots/20-final-deployment.png)
-
----
 
 # 26. Troubleshooting
 
@@ -926,36 +864,7 @@ python -m pytest -v
 
 ---
 
-# 27. Submission Screenshot Checklist
-
-For assignment submission, capture the following screenshots:
-
-- [ ] GitHub repository
-- [ ] Project files
-- [ ] Python environment
-- [ ] Dependencies installed
-- [ ] Pytest successful
-- [ ] Flask application running locally
-- [ ] Docker image built
-- [ ] Docker container running
-- [ ] ECR repository
-- [ ] EC2 instance
-- [ ] EC2 IAM role
-- [ ] GitHub Actions Secrets page
-- [ ] CI/CD workflow file
-- [ ] Git push
-- [ ] GitHub Actions successful
-- [ ] Docker image available in ECR
-- [ ] Flask container running on EC2
-- [ ] Health endpoint successful
-- [ ] Flask application accessible from browser
-- [ ] Final deployment successful
-
-> **Security:** Do not capture or submit screenshots that reveal AWS secret access keys, private SSH keys, passwords, or other sensitive credentials. If a secret value appears in a screenshot, remove/redact it before submission.
-
----
-
-# 28. Technologies Used
+# 27. Technologies Used
 
 | Technology | Purpose |
 |---|---|
@@ -971,7 +880,7 @@ For assignment submission, capture the following screenshots:
 
 ---
 
-# 29. Final Result
+# 28. Final Result
 
 The completed project provides an automated CI/CD workflow:
 
